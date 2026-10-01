@@ -1,4 +1,4 @@
-**CODE**
+CODE
 
 import pandas as pd
 import scipy.stats as stats
@@ -71,7 +71,8 @@ print("Quadratic R-squared:", quadratic_model.rsquared)
 print("Linear AIC:", linear_model.aic)
 print("Quadratic AIC:", quadratic_model.aic)
 
-**OUTPUT**
+OUTPUT
+
 Correlation: -0.2602631959404124
 P-value: 1.02372716799112e-06
 Linear regression:
