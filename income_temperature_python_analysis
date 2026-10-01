@@ -1,26 +1,119 @@
->>> import pandas as pd
->>> temperature = pd.read_csv("C:/Users/ethan/Downloads/temperatures.csv")
->>> salary = pd.read_csv("C:/Users/ethan/Downloads/salaries.csv")
->>> temperature["City"] = temperature["City"].str.strip()
->>> salary["City"] = salary["City"].str.strip()
->>> temperature = temperature[["City", "Average Temperature"]]
->>> salary = salary[["City", "Average Salary"]]
->>> combined = pd.merge(temperature, salary, on="City", how="inner")
->>> combined.to_csv("city_salary_temperature.csv", index=False)
->>> print(combined)
-                 City  Average Temperature Average Salary
-0               Kabul            11.868024        $40.77
-1              Tirana            13.116519       $347.35
-2             Algiers            19.309240       $331.98
-3              Luanda            25.869321          $-
-4        Buenos Aires            18.306810       $890.79
-..                ...                  ...            ...
-345           Caracas            23.985425        $21.58
-346          Valencia            25.827991     $1,476.02
-347             Hanoi            23.617103       $285.76
-348  Ho Chi Minh City            27.917594       $381.01
-349            Harare            19.216724       $252.00
+**CODE**
 
-[350 rows x 3 columns]
->>> combined.to_csv("C:/Users/ethan/Downloads/cities_salary_temperature.csv", index=False)
->>>
+import pandas as pd
+import scipy.stats as stats
+import statsmodels.api as sm
+
+temperature = pd.read_csv("/content/temperatures.csv")
+salary = pd.read_csv("/content/salaries.csv")
+
+temperature["City"] = temperature["City"].str.strip()
+salary["City"] = salary["City"].str.strip()
+
+temperature = temperature[["City", "Average Temperature"]]
+salary = salary[["City", "Average Salary"]]
+
+# Clean salary values
+salary["Average Salary"] = (
+    salary["Average Salary"]
+    .str.replace("$", "", regex=False)
+    .str.replace(",", "", regex=False)
+    .str.strip()
+)
+
+salary["Average Salary"] = pd.to_numeric(
+    salary["Average Salary"],
+    errors="coerce"
+)
+
+# Combine the datasets
+combined = pd.merge(temperature, salary, on="City", how="inner")
+
+# Remove missing values
+combined = combined.dropna(subset=["Average Temperature", "Average Salary"])
+
+combined.to_csv("/content/city_salary_temperature.csv", index=False)
+
+print(combined)
+
+# Calculate Pearson correlation and p-value
+correlation, p_value = stats.pearsonr(
+    combined["Average Temperature"],
+    combined["Average Salary"]
+)
+
+print("Correlation:", correlation)
+print("P-value:", p_value)
+
+X = combined["Average Temperature"]
+y = combined["Average Salary"]
+
+# Linear regression
+X_linear = sm.add_constant(X)
+linear_model = sm.OLS(y, X_linear).fit()
+
+# Quadratic regression
+combined["Temperature Squared"] = X ** 2
+X_quadratic = sm.add_constant(
+    combined[["Average Temperature", "Temperature Squared"]]
+)
+quadratic_model = sm.OLS(y, X_quadratic).fit()
+
+print("Linear regression:")
+print(linear_model.summary())
+
+print("Quadratic regression:")
+print(quadratic_model.summary())
+
+# Compare the two models
+print("Linear R-squared:", linear_model.rsquared)
+print("Quadratic R-squared:", quadratic_model.rsquared)
+print("Linear AIC:", linear_model.aic)
+print("Quadratic AIC:", quadratic_model.aic)
+
+**OUTPUT**
+Correlation: -0.2602631959404124
+P-value: 1.02372716799112e-06
+Linear regression:
+                            OLS Regression Results                            
+==============================================================================
+Dep. Variable:         Average Salary   R-squared:                       0.068
+Model:                            OLS   Adj. R-squared:                  0.065
+Method:                 Least Squares   F-statistic:                     24.78
+Date:                Thu, 01 Oct 2026   Prob (F-statistic):           1.02e-06
+Time:                        16:04:49   Log-Likelihood:                -2890.2
+No. Observations:                 343   AIC:                             5784.
+Df Residuals:                     341   BIC:                             5792.
+Df Model:                           1
+Covariance Type:            nonrobust
+=======================================================================================
+                          coef    std err          t      P>|t|      [0.025      0.975]
+---------------------------------------------------------------------------------------
+const                1858.0269    143.520     12.946      0.000    1575.731    2140.323
+Average Temperature   -40.3203      8.100     -4.978      0.000     -56.253     -24.387
+==============================================================================
+
+Quadratic regression:
+                            OLS Regression Results                            
+==============================================================================
+Dep. Variable:         Average Salary   R-squared:                       0.068
+Model:                            OLS   Adj. R-squared:                  0.062
+Method:                 Least Squares   F-statistic:                     12.37
+Date:                Thu, 01 Oct 2026   Prob (F-statistic):           6.55e-06
+Time:                        16:04:49   Log-Likelihood:                -2890.2
+No. Observations:                 343   AIC:                             5786.
+Df Residuals:                     340   BIC:                             5798.
+Df Model:                           2
+Covariance Type:            nonrobust
+=======================================================================================
+                          coef    std err          t      P>|t|      [0.025      0.975]
+---------------------------------------------------------------------------------------
+const                1819.8487    282.253      6.448      0.000    1264.667    2375.030
+Average Temperature   -34.4986     37.920     -0.910      0.364    -109.085      40.088
+Temperature Squared    -0.1771      1.127     -0.157      0.875      -2.393       2.039
+==============================================================================
+
+Linear R-squared: 0.06773693116111745
+Quadratic R-squared: 0.06780465414995962
+Linear AIC: 5784.369802836659
+Quadratic AIC: 5786.344885160834
